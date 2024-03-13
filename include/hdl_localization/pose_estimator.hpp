@@ -4,16 +4,18 @@
 #include <memory>
 #include <boost/optional.hpp>
 
-#include <ros/ros.h>
+#include <rclcpp/time.hpp>
+#include <rclcpp/clock.hpp>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/registration/registration.h>
 
 namespace kkl {
-  namespace alg {
-template<typename T, class System> class UnscentedKalmanFilterX;
-  }
+namespace alg {
+template <typename T, class System>
+class UnscentedKalmanFilterX;
 }
+}  // namespace kkl
 
 namespace hdl_localization {
 
@@ -41,7 +43,7 @@ public:
    * @brief predict
    * @param stamp    timestamp
    */
-  void predict(const ros::Time& stamp);
+  void predict(const rclcpp::Time& stamp);
 
   /**
    * @brief predict
@@ -49,7 +51,7 @@ public:
    * @param acc      acceleration
    * @param gyro     angular velocity
    */
-  void predict(const ros::Time& stamp, const Eigen::Vector3f& acc, const Eigen::Vector3f& gyro);
+  void predict(const rclcpp::Time& stamp, const Eigen::Vector3f& acc, const Eigen::Vector3f& gyro);
 
   /**
    * @brief update the state of the odomety-based pose estimation
@@ -61,10 +63,10 @@ public:
    * @param cloud   input cloud
    * @return cloud aligned to the globalmap
    */
-  pcl::PointCloud<PointT>::Ptr correct(const ros::Time& stamp, const pcl::PointCloud<PointT>::ConstPtr& cloud);
+  pcl::PointCloud<PointT>::Ptr correct(const rclcpp::Time& stamp, const pcl::PointCloud<PointT>::ConstPtr& cloud);
 
   /* getters */
-  ros::Time last_correction_time() const;
+  rclcpp::Time last_correction_time() const;
 
   Eigen::Vector3f pos() const;
   Eigen::Vector3f vel() const;
@@ -80,9 +82,9 @@ public:
   const boost::optional<Eigen::Matrix4f>& odom_prediction_error() const;
 
 private:
-  ros::Time init_stamp;             // when the estimator was initialized
-  ros::Time prev_stamp;             // when the estimator was updated last time
-  ros::Time last_correction_stamp;  // when the estimator performed the correction step
+  rclcpp::Time init_stamp;             // when the estimator was initialized
+  rclcpp::Time prev_stamp;             // when the estimator was updated last time
+  rclcpp::Time last_correction_stamp;  // when the estimator performed the correction step
   double cool_time_duration;        //
 
   Eigen::MatrixXf process_noise;
@@ -95,7 +97,7 @@ private:
   boost::optional<Eigen::Matrix4f> odom_pred_error;
 
   pcl::Registration<PointT, PointT>::Ptr registration;
-  };
+};
 
 }  // namespace hdl_localization
 
