@@ -111,7 +111,7 @@ public:
     use_global_localization = this->declare_parameter<bool>("use_global_localization", true);
     if (use_global_localization) {
       RCLCPP_INFO(this->get_logger(), "wait for global localization services");
-      relocalize_service_ = this->create_service<std_srvs::srv::Empty>("/relocalize", std::bind(&HdlLocalization::relocalize, this, std::placeholders::_1));
+      relocalize_service_ = this->create_service<std_srvs::srv::Empty>("/relocalize", std::bind(&HdlLocalization::relocalize, this, std::placeholders::_1, std::placeholders::_2));
       set_global_map_client_ = this->create_client<hdl_global_localization_msgs::srv::SetGlobalMap>("/hdl_global_localization/set_global_map");
       query_global_localization_client_ = this->create_client<hdl_global_localization_msgs::srv::QueryGlobalLocalization>("/hdl_global_localization/query");
       while (!set_global_map_client_->wait_for_service(1s))
@@ -151,7 +151,7 @@ public:
       return;
     }
 
-    Eigen::Affine3d affine_conversion(tf2::transformToEigen(transform).affine().cast<float>());
+    Eigen::Affine3f affine_conversion(tf2::transformToEigen(transform).affine().cast<float>());
     pcl::transformPointCloud(*pcl_cloud, *cloud, affine_conversion);
 
     auto filtered = downsample(cloud);
@@ -255,7 +255,7 @@ public:
       this->declare_parameter<double>("cool_time_duration", 0.5)));
   }
 
-  bool relocalize(std_srvs::srv::Empty::Request& req, std_srvs::srv::Empty::Response& res) {
+  bool relocalize(std_srvs::srv::Empty::Request::SharedPtr req, std_srvs::srv::Empty::Response::SharedPtr res) {
     if (last_scan == nullptr) {
       RCLCPP_INFO_STREAM(this->get_logger(), "no scan has been received");
       return false;
