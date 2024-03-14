@@ -58,4 +58,10 @@ target_include_directories(globalmap_server_component PRIVATE ${PCL_INCLUDE_DIRS
 target_link_libraries(globalmap_server_component ${PCL_LIBRARIES})
 target_compile_definitions(globalmap_server_component PRIVATE ${PCL_DEFINITIONS})
 
+install(DIRECTORY
+  launch
+  data
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 ament_auto_package()

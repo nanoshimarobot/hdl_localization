@@ -87,6 +87,13 @@ public:
     invert_acc = this->declare_parameter<bool>("invert_acc", false);
     invert_gyro = this->declare_parameter<bool>("invert_gyro", false);
 
+    this->declare_parameter<std::string>("reg_method", "NDT_OMP");
+    this->declare_parameter<std::string>("ndt_neighbor_search_method", "DIRECT7");
+    this->declare_parameter<double>("ndt_neighbor_search_radius", 2.0);
+    this->declare_parameter<double>("ndt_resolution", 1.0);
+    this->declare_parameter<bool>("enable_robot_odometry_prediction", false);
+    this->declare_parameter<double>("cool_time_duration", 0.5);
+
     if (use_imu) {
       RCLCPP_INFO(this->get_logger(), "enable imu-based prediction");
       imu_sub =
@@ -188,7 +195,7 @@ public:
 
     // odometry-based prediction
     rclcpp::Time last_correction_time = pose_estimator->last_correction_time();
-    if (this->declare_parameter<bool>("enable_robot_odometry_prediction", false) && !(last_correction_time.seconds() == 0.0)) {
+    if (this->get_parameter("enable_robot_odometry_prediction").as_bool() && !(last_correction_time.seconds() == 0.0)) {
       geometry_msgs::msg::TransformStamped odom_delta;
 
       try {
@@ -252,7 +259,7 @@ public:
       registration,
       Eigen::Vector3f(p.x, p.y, p.z),
       Eigen::Quaternionf(q.w, q.x, q.y, q.z),
-      this->declare_parameter<double>("cool_time_duration", 0.5)));
+      this->get_parameter("cool_time_duration").as_double()));
   }
 
   bool relocalize(std_srvs::srv::Empty::Request::SharedPtr req, std_srvs::srv::Empty::Response::SharedPtr res) {
@@ -284,7 +291,7 @@ public:
       pose = pose * delta_estimater->estimated_delta();
 
       this->pose_estimator.reset(
-        new hdl_localization::PoseEstimator(registration, pose.translation(), Eigen::Quaternionf(pose.linear()), this->declare_parameter<double>("cool_time_duration", 0.5)));
+        new hdl_localization::PoseEstimator(registration, pose.translation(), Eigen::Quaternionf(pose.linear()), this->get_parameter("cool_time_duration").as_double()));
 
       relocalizing = false;
     });
@@ -361,10 +368,10 @@ public:
   }
 
   pcl::Registration<PointT, PointT>::Ptr create_registration() {
-    std::string reg_method = this->declare_parameter<std::string>("reg_method", "NDT_OMP");
-    std::string ndt_neighbor_search_method = this->declare_parameter<std::string>("ndt_neighbor_search_method", "DIRECT7");
-    double ndt_neighbor_search_radius = this->declare_parameter<double>("ndt_neighbor_search_radius", 2.0);
-    double ndt_resolution = this->declare_parameter<double>("ndt_resolution", 1.0);
+    std::string reg_method = this->get_parameter("reg_method").as_string();
+    std::string ndt_neighbor_search_method = this->get_parameter("ndt_neighbor_search_method").as_string();
+    double ndt_neighbor_search_radius = this->get_parameter("ndt_neighbor_search_radius").as_double();
+    double ndt_resolution = this->get_parameter("ndt_resolution").as_double();
 
     if (reg_method == "NDT_OMP") {
       RCLCPP_INFO(this->get_logger(), "NDT_OMP is selected");
