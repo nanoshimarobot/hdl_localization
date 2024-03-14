@@ -78,10 +78,6 @@ public:
     tf_listener_(tf_buffer_),
     tf_broadcaster_(this) {
     using namespace std::chrono_literals;
-    initialize_params();
-
-    robot_odom_frame_id = this->declare_parameter<std::string>("robot_odom_frame_id", "robot_odom");
-    odom_child_frame_id = this->declare_parameter<std::string>("odom_child_frame_id", "base_link");
 
     use_imu = this->declare_parameter<bool>("use_imu", true);
     invert_acc = this->declare_parameter<bool>("invert_acc", false);
@@ -93,6 +89,11 @@ public:
     this->declare_parameter<double>("ndt_resolution", 1.0);
     this->declare_parameter<bool>("enable_robot_odometry_prediction", false);
     this->declare_parameter<double>("cool_time_duration", 0.5);
+
+    initialize_params();
+
+    robot_odom_frame_id = this->declare_parameter<std::string>("robot_odom_frame_id", "robot_odom");
+    odom_child_frame_id = this->declare_parameter<std::string>("odom_child_frame_id", "base_link");
 
     if (use_imu) {
       RCLCPP_INFO(this->get_logger(), "enable imu-based prediction");
@@ -125,6 +126,8 @@ public:
         ;
       while (!query_global_localization_client_->wait_for_service(1s))
         ;
+
+      RCLCPP_INFO(this->get_logger(), "global localization services appeared");
     }
   }
 
@@ -426,7 +429,7 @@ public:
           this->declare_parameter<double>("init_ori_x", 0.0),
           this->declare_parameter<double>("init_ori_y", 0.0),
           this->declare_parameter<double>("init_ori_z", 0.0)),
-        this->declare_parameter<double>("cool_time_duration", 0.5)));
+        this->get_parameter("cool_time_duration").as_double()));
     }
   }
 };
