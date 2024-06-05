@@ -252,11 +252,19 @@ public:
         RCLCPP_INFO(this->get_logger(), "global map set");
       });
 
-      if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS) {
-        RCLCPP_WARN(this->get_logger(), "failed to set global map");
-      } else {
-        RCLCPP_INFO(this->get_logger(), "done");
-      }
+      RCLCPP_INFO(this->get_logger(), "sended to set global map!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
+      // if(result.wait_for(std::chrono::seconds(3)) != std::future_status::timeout){
+      //   RCLCPP_INFO(this->get_logger(), "done");
+      // }else{
+      //   RCLCPP_WARN(this->get_logger(), "failed to set global map");
+      // }
+
+      // if (rclcpp::spin_until_future_complete(this->shared_from_this(), result) == rclcpp::FutureReturnCode::SUCCESS) {
+      //   RCLCPP_WARN(this->get_logger(), "failed to set global map");
+      // } else {
+      //   RCLCPP_INFO(this->get_logger(), "done");
+      // }
     }
   }
 
@@ -306,13 +314,22 @@ public:
         relocalizing = false;
       });
 
-    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS) {
+    RCLCPP_INFO(this->get_logger(), "sended to set global map!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    
+    // if (rclcpp::spin_until_future_complete(this->shared_from_this(), result) == rclcpp::FutureReturnCode::SUCCESS) {
+    //   return true;
+    // } else {
+    //   relocalizing = false;
+    //   RCLCPP_WARN(this->get_logger(), "global localization failed");
+    //   return false;
+    // }
+    // if(result.wait_for(std::chrono::seconds(3)) != std::future_status::timeout){
       return true;
-    } else {
-      relocalizing = false;
-      RCLCPP_WARN(this->get_logger(), "global localization failed");
-      return false;
-    }
+    // }else{
+    //   relocalizing = false;
+    //   RCLCPP_WARN(this->get_logger(), "global localization failed");
+    //   return false;
+    // }
   }
 
   void publish_odometry(const rclcpp::Time& stamp, const Eigen::Matrix4f& pose) {
