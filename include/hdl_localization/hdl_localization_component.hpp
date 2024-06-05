@@ -69,6 +69,8 @@ private:
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr relocalize_service_;
   rclcpp::Client<hdl_global_localization_msgs::srv::SetGlobalMap>::SharedPtr set_global_map_client_;
   rclcpp::Client<hdl_global_localization_msgs::srv::QueryGlobalLocalization>::SharedPtr query_global_localization_client_;
+  [[maybe_unused]] bool set_global_map_call_respond_ = false;
+  [[maybe_unused]] bool query_global_localization_call_respond_ = false;
 
 public:
   HdlLocalization(const rclcpp::NodeOptions& options) : HdlLocalization("", options) {}
@@ -122,10 +124,8 @@ public:
       relocalize_service_ = this->create_service<std_srvs::srv::Empty>("/relocalize", std::bind(&HdlLocalization::relocalize, this, std::placeholders::_1, std::placeholders::_2));
       set_global_map_client_ = this->create_client<hdl_global_localization_msgs::srv::SetGlobalMap>("/hdl_global_localization/set_global_map");
       query_global_localization_client_ = this->create_client<hdl_global_localization_msgs::srv::QueryGlobalLocalization>("/hdl_global_localization/query");
-      while (!set_global_map_client_->wait_for_service(1s))
-        ;
-      while (!query_global_localization_client_->wait_for_service(1s))
-        ;
+      while (!set_global_map_client_->wait_for_service(1s));
+      while (!query_global_localization_client_->wait_for_service(1s));
 
       RCLCPP_INFO(this->get_logger(), "global localization services appeared");
     }
@@ -248,9 +248,15 @@ public:
       auto req = std::make_shared<hdl_global_localization_msgs::srv::SetGlobalMap::Request>();
       pcl::toROSMsg(*globalmap, req->global_map);
 
-      set_global_map_client_->async_send_request(req, [this](rclcpp::Client<hdl_global_localization_msgs::srv::SetGlobalMap>::SharedFuture future) {
+      auto result = set_global_map_client_->async_send_request(req, [this](rclcpp::Client<hdl_global_localization_msgs::srv::SetGlobalMap>::SharedFuture future) {
         RCLCPP_INFO(this->get_logger(), "global map set");
       });
+
+      if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS) {
+        RCLCPP_WARN(this->get_logger(), "failed to set global map");
+      } else {
+        RCLCPP_INFO(this->get_logger(), "done");
+      }
     }
   }
 
@@ -280,26 +286,33 @@ public:
     pcl::toROSMsg(*scan, query_req->cloud);
     query_req->max_num_candidates = 1;
 
-    query_global_localization_client_->async_send_request(query_req, [this](rclcpp::Client<hdl_global_localization_msgs::srv::QueryGlobalLocalization>::SharedFuture future) {
-      const auto& result = future.get()->poses[0];
-      RCLCPP_INFO_STREAM(this->get_logger(), "--- Global localization result ---");
-      RCLCPP_INFO_STREAM(this->get_logger(), "Trans :" << result.position.x << " " << result.position.y << " " << result.position.z);
-      RCLCPP_INFO_STREAM(this->get_logger(), "Quat  :" << result.orientation.x << " " << result.orientation.y << " " << result.orientation.z << " " << result.orientation.w);
-      RCLCPP_INFO_STREAM(this->get_logger(), "Error :" << future.get()->errors[0]);
-      RCLCPP_INFO_STREAM(this->get_logger(), "Inlier:" << future.get()->inlier_fractions[0]);
+    auto result =
+      query_global_localization_client_->async_send_request(query_req, [this](rclcpp::Client<hdl_global_localization_msgs::srv::QueryGlobalLocalization>::SharedFuture future) {
+        const auto& result = future.get()->poses[0];
+        RCLCPP_INFO_STREAM(this->get_logger(), "--- Global localization result ---");
+        RCLCPP_INFO_STREAM(this->get_logger(), "Trans :" << result.position.x << " " << result.position.y << " " << result.position.z);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Quat  :" << result.orientation.x << " " << result.orientation.y << " " << result.orientation.z << " " << result.orientation.w);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Error :" << future.get()->errors[0]);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Inlier:" << future.get()->inlier_fractions[0]);
 
-      Eigen::Isometry3f pose = Eigen::Isometry3f::Identity();
-      pose.linear() = Eigen::Quaternionf(result.orientation.w, result.orientation.x, result.orientation.y, result.orientation.z).toRotationMatrix();
-      pose.translation() = Eigen::Vector3f(result.position.x, result.position.y, result.position.z);
-      pose = pose * delta_estimater->estimated_delta();
+        Eigen::Isometry3f pose = Eigen::Isometry3f::Identity();
+        pose.linear() = Eigen::Quaternionf(result.orientation.w, result.orientation.x, result.orientation.y, result.orientation.z).toRotationMatrix();
+        pose.translation() = Eigen::Vector3f(result.position.x, result.position.y, result.position.z);
+        pose = pose * delta_estimater->estimated_delta();
 
-      this->pose_estimator.reset(
-        new hdl_localization::PoseEstimator(registration, pose.translation(), Eigen::Quaternionf(pose.linear()), this->get_parameter("cool_time_duration").as_double()));
+        this->pose_estimator.reset(
+          new hdl_localization::PoseEstimator(registration, pose.translation(), Eigen::Quaternionf(pose.linear()), this->get_parameter("cool_time_duration").as_double()));
 
+        relocalizing = false;
+      });
+
+    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS) {
+      return true;
+    } else {
       relocalizing = false;
-    });
-
-    return true;
+      RCLCPP_WARN(this->get_logger(), "global localization failed");
+      return false;
+    }
   }
 
   void publish_odometry(const rclcpp::Time& stamp, const Eigen::Matrix4f& pose) {
